@@ -1,0 +1,27 @@
+defmodule ExMetrc.MetrcAPI do
+  @moduledoc """
+  This module is responsible to abstract the calls to Metrc server
+  """
+  alias ExMetrc.Helpers
+
+  def get_employees(store_owner_key,store_license_number) when is_binary(store_owner_key) and is_binary(store_license_number) do
+    # get list of employees and return them
+  end
+
+  def get_employees(_store_owner_key,_store_license_number) do
+    {:error, :invalid_params}
+  end
+
+  def get_products(store_owner_key, store_license_number) when is_binary(store_owner_key) and is_binary(store_license_number) do
+  #get list of products from the store and return them
+  end
+
+  def get_products(_store_owner_key,_store_license_number) do
+    {:error, :invalid_params}
+  end
+
+  def get_facilities(store_owner_key) when is_binary(store_owner_key) do
+  #get list of stores the store owner has
+  end
+
+end
