@@ -18,14 +18,23 @@ defmodule ExMetrc.Helpers do
     end
   end
 
-  def headers do
+  def headers(store_owner_key) do
     [
-      {"content-type", "application/json"}
+      {"content-type", "application/json"},
+      {"Authorization", authentication_header(store_owner_key)}
     ]
   end
 
+  def authentication_header(store_owner_key) do
+    "Basic " <> Base.encode64(vendor_api_key() <> ":" <> store_owner_key)
+  end
+
+  def vendor_api_key do
+    env(:vendor_key, %{raise: true})
+  end
+
   def endpoint do
-    env(:endpoint, %{raise: false, default: "https://api-ca.metrc.com"})
+    env(:endpoint, %{raise: false, default: "https://api-ca.metrc.com/"})
   end
 
   def endpoint_get_callback(
