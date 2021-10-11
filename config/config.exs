@@ -24,9 +24,8 @@ config :logger, :console,
 config :phoenix, :json_library, Jason
 
 # this is added to test the library separately without integrating it in another project
-# config :ex_metrc,
-#   endpoint: "https://sandbox-api-ca.metrc.com/",
-#   vendor_key: "UaTU7SAzghY2mLsj6H8eza7ufC4u7ckWpXTaCWNXatfwmPzl"
+config :ex_metrc,
+  vendor_key: "YOUR_API_VENDOR_KEY"
 
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
