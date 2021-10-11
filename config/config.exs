@@ -25,7 +25,8 @@ config :phoenix, :json_library, Jason
 
 # this is added to test the library separately without integrating it in another project
 config :ex_metrc,
-  vendor_key: "YOUR_API_VENDOR_KEY"
+  vendor_key: "YOUR_API_VENDOR_KEY",
+  requests_per_second: 3
 
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.

@@ -46,7 +46,8 @@ defmodule ExMetrc.MixProject do
       {:httpoison, "~> 1.8"},
       {:poison, "~> 4.0.1"},
       {:credo, "~> 1.5", only: [:dev, :test], runtime: false},
-      {:excoveralls, "~> 0.10", only: :test}
+      {:excoveralls, "~> 0.10", only: :test},
+      {:ex_doc, "~> 0.24", only: :dev, runtime: false}
     ]
   end
 

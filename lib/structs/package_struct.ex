@@ -42,3 +42,124 @@ defmodule Package do
             last_modified: "",
             item: %PackageItem{}
 end
+
+defimpl ApiProtocol, for: Package do
+  alias ExMetrc.Helpers
+
+  def get(%Package{}, store_owner_key, store_license_number, opts \\ %{})
+      when is_binary(store_owner_key) and is_binary(store_license_number) do
+    # validate start_date and end_date (end_date can be ommitted, in this case it will default to 24 hours)
+    start_date = Map.get(opts, :start_date, "")
+    end_date = Map.get(opts, :end_date, "")
+
+    with :ok <- Helpers.validate_date(start_date, true),
+         :ok <- Helpers.validate_date(end_date, true) do
+      # we need to partition the given dates / datetimes to a list of 24 hours difference
+      # for example if start_date: 2021-10-07 and end_date: 2021-10-09:
+      #   - We need to send 2 requests:
+      #     - one start_date 2021-10-07 and end_date 2021-10-08
+      #     - one start_date 2021-10-08 and end_date 2021-10-09
+      #   - We need to also limit the number of requests per second, for this:
+      #     - Set the amount of requests per second in the config file
+      #     - Send a batch of requests every 1 second
+
+      headers = Helpers.headers(store_owner_key)
+      store_license_number = "licenseNumber=" <> store_license_number
+      query_params = Helpers.query_filters(Map.delete(opts, :start_date) |> Map.delete(:end_date))
+
+      dates_list = Helpers.split_dates(start_date, end_date)
+
+      urls_list =
+        Enum.map(dates_list, fn {start_date, end_date} ->
+          start_date = if start_date != "", do: "&lastModifiedStart=" <> start_date, else: ""
+          end_date = if end_date != "", do: "&lastModifiedEnd=" <> end_date, else: ""
+
+          Helpers.metrc_url_endpoints("get active packages") <>
+            store_license_number <> start_date <> end_date <> query_params
+        end)
+        |> Enum.chunk_every(Helpers.requests_per_second())
+
+      # urls_list now is a list of: list of query strings where the maximum length is the number of requests per second
+      # we need to perform the requests in every batch together, then wait a second
+      res =
+        Enum.map(urls_list, fn urls ->
+          Task.async(fn ->
+            Enum.map(urls, fn url -> Helpers.endpoint_get_callback(url, headers) end)
+          end)
+        end)
+        |> Enum.map(fn task ->
+          :timer.sleep(1000)
+          Task.await(task, 5000)
+        end)
+        |> List.flatten()
+
+      # now we need to transform it to structs or return 1 message from all the request where the license number or unauthorized
+      # check the first response of all the responses only, since same credentials are used in all the requests
+
+      case List.first(res) do
+        %{"Message" => message} ->
+          {:error, message}
+
+        {:error, ""} ->
+          {:error, "Invalid License Number"}
+
+        _ ->
+          Enum.map(res, fn package ->
+            StructProtocol.map_to_struct(%Package{}, package)
+          end)
+      end
+    else
+      {:error, _} -> {:error, :invalid_date_formats}
+    end
+  end
+end
+
+defimpl StructProtocol, for: Package do
+  def map_to_struct(%Package{}, map) do
+    package_item = StructProtocol.map_to_struct(%PackageItem{}, Map.get(map, "Item"))
+
+    struct(Package, %{
+      metrc_id: Map.get(map, "Id"),
+      label: Map.get(map, "Label"),
+      package_type: Map.get(map, "PackageType"),
+      package_date: Map.get(map, "PackagedDate"),
+      quantity: Map.get(map, "Quantity"),
+      unit_of_measure_name: Map.get(map, "UnitOfMeasureName"),
+      unit_of_measure_abbreviation: Map.get(map, "UnitOfMeasureAbbreviation"),
+      source_harvest_names: Map.get(map, "SourceHarvestNames"),
+      source_production_batch_numbers: Map.get(map, "SourceProductionBatchNumbers"),
+      is_production_batch: Map.get(map, "IsProductionBatch"),
+      production_batch_number: Map.get(map, "ProductionBatchNumber"),
+      is_trade_sample: Map.get(map, "IsTradeSample"),
+      is_trade_sample_persistent: Map.get(map, "IsTradeSamplePersistent"),
+      is_testing_sample: Map.get(map, "IsTestingSample"),
+      is_process_validation_testing_sample: Map.get(map, "IsProcessValidationTestingSample"),
+      is_donation_persistent: Map.get(map, "IsDonationPersistent"),
+      is_on_hold: Map.get(map, "IsOnHold"),
+      location_id: Map.get(map, "LocationId"),
+      location_name: Map.get(map, "LocationName"),
+      location_type_name: Map.get(map, "LocationTypeName"),
+      patient_license_number: Map.get(map, "PatientLicenseNumber"),
+      note: Map.get(map, "Note"),
+      initial_lab_testing_state: Map.get(map, "InitialLabTestingState"),
+      lab_testing_state: Map.get(map, "LabTestingState"),
+      lab_testing_state_date: Map.get(map, "LabTestingStateDate"),
+      source_package_is_trade_sample: Map.get(map, "SourcePackageIsTradeSample"),
+      is_donation: Map.get(map, "IsDonation"),
+      source_package_is_donation: Map.get(map, "SourcePackageIsDonation"),
+      product_requires_remidiation: Map.get(map, "ProductRequiresRemediation"),
+      contains_remediated_product: Map.get(map, "ContainsRemediatedProduct"),
+      remediation_date: Map.get(map, "RemediationDate"),
+      received_from_manifest_number: Map.get(map, "ReceivedFromManifestNumber"),
+      received_from_facility_license_number: Map.get(map, "ReceivedFromFacilityLicenseNumber"),
+      received_from_facility_name: Map.get(map, "ReceivedFromFacilityName"),
+      received_date_time: Map.get(map, "ReceivedDateTime"),
+      item_from_facility_license_number: Map.get(map, "ItemFromFacilityLicenseNumber"),
+      item_from_facility_name: Map.get(map, "ItemFromFacilityName"),
+      item: package_item,
+      archived_date: Map.get(map, "ArchivedDate"),
+      finished_date: Map.get(map, "FinishedDate"),
+      last_modified: Map.get(map, "LastModified")
+    })
+  end
+end

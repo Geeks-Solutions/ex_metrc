@@ -2,6 +2,8 @@ defmodule ExMetrc.Helpers do
   @moduledoc """
   Helper functions for the library
   """
+
+  @one_day_in_seconds 86400
   def env(key, opts \\ %{default: nil, raise: false}) do
     Application.get_env(:ex_metrc, key)
     |> case do
@@ -37,16 +39,28 @@ defmodule ExMetrc.Helpers do
     env(:endpoint, %{raise: false, default: "https://api-ca.metrc.com/"})
   end
 
+  def requests_per_second do
+    env(:requests_per_second, %{raise: false, default: 3})
+  end
+
   def metrc_url_endpoints(action) do
     case action do
       "get employees" ->
-        endpoint() <> "employees/v1/"
+        endpoint() <> "employees/v1/?"
 
       "get active packages" ->
-        endpoint() <> "packages/v1/active/"
+        endpoint() <> "packages/v1/active/?"
 
+      # For sales, there are 2 endpoints: active and inactive
+      # active: receipt is neither final or voided
+      # inactive: receipt is final or voided, however voiding a receipt deletes it from the database,
+      # so inactive means the receipt is final
+      # There is no endpoint that can change receipt from active to inactive
       "get sales" ->
-        endpoint() <> "sales/v1/receipts/inactive/"
+        endpoint() <> "sales/v1/receipts/active/?"
+
+      "get sale by id" ->
+        endpoint() <> "sales/v1/receipts/"
 
       _ ->
         {:error, :action_not_known}
@@ -125,92 +139,11 @@ defmodule ExMetrc.Helpers do
     end
   end
 
-  def map_to_struct("employee", map) do
-    license_map = Map.get(map, "License")
-
-    employee_license =
-      struct(EmployeeLicense, %{
-        number: Map.get(license_map, "Number"),
-        start_date: Map.get(license_map, "StartDate"),
-        end_date: Map.get(license_map, "EndDate"),
-        license_type: Map.get(license_map, "LicenseType")
-      })
-
-    struct(Employee, %{
-      fullname: Map.get(map, "FullName"),
-      license: employee_license
-    })
-  end
-
-  def map_to_struct("package_item", map) do
-    struct(PackageItem, %{
-      name: Map.get(map, "Name"),
-      quantity_type: Map.get(map, "QuantityType"),
-      default_lab_testing_state: Map.get(map, "DefaultLabTestingState"),
-      unit_of_measurement_name: Map.get(map, "UnitOfMeasureName"),
-      approval_status: Map.get(map, "ApprovalStatus"),
-      approval_status_date_time: Map.get(map, "ApprovalStatusDateTime"),
-      strain_id: Map.get(map, "StrainId"),
-      administration_method: Map.get(map, "AdministrationMethod"),
-      unit_cbd_content_dose: Map.get(map, "UnitCbdContentDose"),
-      unit_cbd_content_dose_unit_of_measure_name:
-        Map.get(map, "UnitCbdContentDoseUnitOfMeasureName"),
-      unit_thc_content_dose: Map.get(map, "UnitThcContentDose"),
-      unit_thc_content_dose_unit_of_measure_name:
-        Map.get(map, "UnitThcContentDoseUnitOfMeasureName"),
-      number_of_doses: Map.get(map, "NumberOfDoses"),
-      public_ingredients: Map.get(map, "PublicIngredients"),
-      description: Map.get(map, "Description"),
-      is_used: Map.get(map, "IsUsed")
-    })
-  end
-
-  def map_to_struct("package", map) do
-    package_item = map_to_struct("package_item", Map.get(map, "Item"))
-
-    struct(Package, %{
-      metrc_id: Map.get(map, "Id"),
-      label: Map.get(map, "Label"),
-      package_type: Map.get(map, "PackageType"),
-      package_date: Map.get(map, "PackagedDate"),
-      quantity: Map.get(map, "Quantity"),
-      unit_of_measure_name: Map.get(map, "UnitOfMeasureName"),
-      unit_of_measure_abbreviation: Map.get(map, "UnitOfMeasureAbbreviation"),
-      source_harvest_names: Map.get(map, "SourceHarvestNames"),
-      source_production_batch_numbers: Map.get(map, "SourceProductionBatchNumbers"),
-      is_production_batch: Map.get(map, "IsProductionBatch"),
-      production_batch_number: Map.get(map, "ProductionBatchNumber"),
-      is_trade_sample: Map.get(map, "IsTradeSample"),
-      is_trade_sample_persistent: Map.get(map, "IsTradeSamplePersistent"),
-      is_testing_sample: Map.get(map, "IsTestingSample"),
-      is_process_validation_testing_sample: Map.get(map, "IsProcessValidationTestingSample"),
-      is_donation_persistent: Map.get(map, "IsDonationPersistent"),
-      is_on_hold: Map.get(map, "IsOnHold"),
-      location_id: Map.get(map, "LocationId"),
-      location_name: Map.get(map, "LocationName"),
-      location_type_name: Map.get(map, "LocationTypeName"),
-      patient_license_number: Map.get(map, "PatientLicenseNumber"),
-      note: Map.get(map, "Note"),
-      initial_lab_testing_state: Map.get(map, "InitialLabTestingState"),
-      lab_testing_state: Map.get(map, "LabTestingState"),
-      lab_testing_state_date: Map.get(map, "LabTestingStateDate"),
-      source_package_is_trade_sample: Map.get(map, "SourcePackageIsTradeSample"),
-      is_donation: Map.get(map, "IsDonation"),
-      source_package_is_donation: Map.get(map, "SourcePackageIsDonation"),
-      product_requires_remidiation: Map.get(map, "ProductRequiresRemediation"),
-      contains_remediated_product: Map.get(map, "ContainsRemediatedProduct"),
-      remediation_date: Map.get(map, "RemediationDate"),
-      received_from_manifest_number: Map.get(map, "ReceivedFromManifestNumber"),
-      received_from_facility_license_number: Map.get(map, "ReceivedFromFacilityLicenseNumber"),
-      received_from_facility_name: Map.get(map, "ReceivedFromFacilityName"),
-      received_date_time: Map.get(map, "ReceivedDateTime"),
-      item_from_facility_license_number: Map.get(map, "ItemFromFacilityLicenseNumber"),
-      item_from_facility_name: Map.get(map, "ItemFromFacilityName"),
-      item: package_item,
-      archived_date: Map.get(map, "ArchivedDate"),
-      finished_date: Map.get(map, "FinishedDate"),
-      last_modified: Map.get(map, "LastModified")
-    })
+  def query_filters(filter_map) do
+    filter_map
+    |> Enum.reduce("", fn {key, value}, acc ->
+      acc <> "&" <> to_string(key) <> "=" <> to_string(value)
+    end)
   end
 
   def validate_date(date, nullable \\ false) when is_binary(date) do
@@ -235,5 +168,57 @@ defmodule ExMetrc.Helpers do
 
   def validate_date(_date, _nullable) do
     {:error, :invalid_params}
+  end
+
+  def split_dates(start_date, end_date) do
+    case {start_date, end_date} do
+      {"", _} ->
+        [{"", ""}]
+
+      {start_date, ""} ->
+        [{start_date, ""}]
+
+      # the goal of this function is to return a list of tuple dates with at most 24 hours interval between them
+      # first transform start_date and end_date to datetime with 00:00:00 time or if valid date_time to date_time (UTC)
+      {start_date, end_date} ->
+        start_date =
+          case(Date.from_iso8601(start_date)) do
+            {:ok, date} ->
+              {:ok, datetime} = DateTime.new(date, Time.from_seconds_after_midnight(0))
+              datetime
+
+            {:error, _} ->
+              {:ok, datetime, _} = DateTime.from_iso8601(start_date)
+              datetime
+          end
+
+        end_date =
+          case(Date.from_iso8601(end_date)) do
+            {:ok, date} ->
+              {:ok, datetime} = DateTime.new(date, Time.from_seconds_after_midnight(0))
+              datetime
+
+            {:error, _} ->
+              {:ok, datetime, _} = DateTime.from_iso8601(end_date)
+              datetime
+          end
+
+        # return this list
+        dates_list_recursion(start_date, end_date)
+    end
+  end
+
+  def dates_list_recursion(start_date, end_date) do
+    interval = DateTime.diff(end_date, start_date)
+
+    if interval <= @one_day_in_seconds do
+      [{DateTime.to_iso8601(start_date), DateTime.to_iso8601(end_date)}]
+    else
+      # 24 hours increment
+      next_day = DateTime.add(start_date, @one_day_in_seconds)
+
+      [{DateTime.to_iso8601(start_date), DateTime.to_iso8601(next_day)}] ++
+        dates_list_recursion(next_day, end_date)
+    end
   end
 end
