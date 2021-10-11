@@ -7,8 +7,10 @@ To use the library:
 3. Add ex_metrc configuration as follows:
  ```elixir
  config :ex_metrc,
- vendor_key: "your_vendor_key"
+ vendor_key: "your_vendor_key",
+ requests_per_second: 3
  ```
+Requests_per_second is used to configure how many requests to send per second, as the Metrc API has rate limiting on the number of requests. 
 
 For the user_key, you need to pass it in the functions dynamically alongside the license number.
 This way, you can access multiple stores without the need to restart the server to change the user key
