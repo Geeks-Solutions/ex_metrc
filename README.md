@@ -10,4 +10,7 @@ To use the library:
  vendor_key: "your_vendor_key"
  ```
 
+For the user_key, you need to pass it in the functions dynamically alongside the license number.
+This way, you can access multiple stores without the need to restart the server to change the user key
+
 Now you are ready to use the library in your application.
