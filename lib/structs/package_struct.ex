@@ -93,7 +93,8 @@ defimpl ApiProtocol, for: Package do
         end)
         |> List.flatten()
 
-      # now we need to transform it to structs or return 1 message from all the request where the license number or unauthorized
+      # now we need to transform it to structs
+      # or return 1 message from all the request where the license number or unauthorized
       # check the first response of all the responses only, since same credentials are used in all the requests
 
       case List.first(res) do

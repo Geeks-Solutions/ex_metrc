@@ -3,7 +3,7 @@ defmodule ExMetrc.Helpers do
   Helper functions for the library
   """
 
-  @one_day_in_seconds 86400
+  @one_day_in_seconds 86_400
   def env(key, opts \\ %{default: nil, raise: false}) do
     Application.get_env(:ex_metrc, key)
     |> case do
