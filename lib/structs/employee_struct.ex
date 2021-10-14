@@ -20,19 +20,42 @@ end
 defimpl ApiProtocol, for: Employee do
   alias ExMetrc.Helpers
 
-  # No filters available in get employees
-  def get(%Employee{}, store_owner_key, store_license_number, _filters)
-      when is_binary(store_owner_key) and is_binary(store_license_number) do
-    url = Helpers.metrc_url_endpoints("get employees") <> "licenseNumber=" <> store_license_number
+  @string_filters [:fullname]
+  @min_integer_filters []
+  @max_integer_filters []
+
+  def get(%Employee{}, store_owner_key, store_license_number, opts \\ %{})
+      when is_binary(store_owner_key) and is_binary(store_license_number) and is_map(opts) do
+    opts =
+      opts
+      |> Map.new(fn {k, v} ->
+        if is_atom(k) do
+          {Atom.to_string(k) |> String.downcase() |> String.to_atom(), v}
+        else
+          {String.downcase(k) |> String.to_atom(), v}
+        end
+      end)
+
+    url = Helpers.endpoint() <> "employees/v1/?licenseNumber=" <> store_license_number
 
     headers = Helpers.headers(store_owner_key)
     res = Helpers.endpoint_get_callback(url, headers)
 
     res =
       if is_list(res) do
-        Enum.map(res, fn employee ->
-          StructProtocol.map_to_struct(%Employee{}, employee)
-        end)
+        {string_filters, min_integer_filters, max_integer_filters} =
+          Helpers.split_filters(
+            opts,
+            @string_filters,
+            @min_integer_filters,
+            @max_integer_filters
+          )
+
+        Helpers.filter(%Employee{}, res, %{
+          string: string_filters,
+          min: min_integer_filters,
+          max: max_integer_filters
+        })
       else
         case res do
           %{"Message" => message} ->
@@ -44,5 +67,17 @@ defimpl ApiProtocol, for: Employee do
       end
 
     res
+  end
+
+  def get(_, _, _, _) do
+    {:error, :invalid_params}
+  end
+
+  def get_by_id(_struct, _store_owner_key, _store_license_number, _id, _filters) do
+    nil
+  end
+
+  def get_by_label(_struct, _store_owner_key, _store_license_number, _label, _filters) do
+    nil
   end
 end

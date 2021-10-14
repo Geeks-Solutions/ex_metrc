@@ -46,8 +46,22 @@ end
 defimpl ApiProtocol, for: Package do
   alias ExMetrc.Helpers
 
+  @string_filters [:package_type, :item_from_facility_license_number, :unit_of_measure_name]
+  @min_integer_filters [:min_quantity]
+  @max_integer_filters [:max_quantity]
   def get(%Package{}, store_owner_key, store_license_number, opts \\ %{})
-      when is_binary(store_owner_key) and is_binary(store_license_number) do
+      when is_binary(store_owner_key) and is_binary(store_license_number) and is_map(opts) do
+    # to avoid any errors later on, transform filters map to downcased atom keys
+    opts =
+      opts
+      |> Map.new(fn {k, v} ->
+        if is_atom(k) do
+          {Atom.to_string(k) |> String.downcase() |> String.to_atom(), v}
+        else
+          {String.downcase(k) |> String.to_atom(), v}
+        end
+      end)
+
     # validate start_date and end_date (end_date can be ommitted, in this case it will default to 24 hours)
     start_date = Map.get(opts, :start_date, "")
     end_date = Map.get(opts, :end_date, "")
@@ -65,7 +79,6 @@ defimpl ApiProtocol, for: Package do
 
       headers = Helpers.headers(store_owner_key)
       store_license_number = "licenseNumber=" <> store_license_number
-      query_params = Helpers.query_filters(Map.delete(opts, :start_date) |> Map.delete(:end_date))
 
       dates_list = Helpers.split_dates(start_date, end_date)
 
@@ -74,8 +87,9 @@ defimpl ApiProtocol, for: Package do
           start_date = if start_date != "", do: "&lastModifiedStart=" <> start_date, else: ""
           end_date = if end_date != "", do: "&lastModifiedEnd=" <> end_date, else: ""
 
-          Helpers.metrc_url_endpoints("get active packages") <>
-            store_license_number <> start_date <> end_date <> query_params
+          Helpers.endpoint() <>
+            "packages/v1/active/?" <>
+            store_license_number <> start_date <> end_date
         end)
         |> Enum.chunk_every(Helpers.requests_per_second())
 
@@ -93,8 +107,8 @@ defimpl ApiProtocol, for: Package do
         end)
         |> List.flatten()
 
-      # now we need to transform it to structs
-      # or return 1 message from all the request where the license number or unauthorized
+      # now we need to transform it to structs and filter them
+      # or return 1 message from all the request where the license number or api key unauthorized
       # check the first response of all the responses only, since same credentials are used in all the requests
 
       case List.first(res) do
@@ -105,13 +119,64 @@ defimpl ApiProtocol, for: Package do
           {:error, "Invalid License Number"}
 
         _ ->
-          Enum.map(res, fn package ->
-            StructProtocol.map_to_struct(%Package{}, package)
-          end)
+          {string_filters, min_integer_filters, max_integer_filters} =
+            Helpers.split_filters(
+              Map.delete(opts, :start_date)
+              |> Map.delete(:end_date),
+              @string_filters,
+              @min_integer_filters,
+              @max_integer_filters
+            )
+
+          Helpers.filter(%Package{}, res, %{
+            string: string_filters,
+            min: min_integer_filters,
+            max: max_integer_filters
+          })
       end
     else
       {:error, _} -> {:error, :invalid_date_formats}
     end
+  end
+
+  def get(_, _, _, _) do
+    {:error, :invalid_params}
+  end
+
+  def get_by_id(%Package{}, store_owner_key, store_license_number, id, _filters) do
+    headers = Helpers.headers(store_owner_key)
+    store_license_number = "?licenseNumber=" <> store_license_number
+
+    url = Helpers.endpoint() <> "packages/v1/" <> id <> store_license_number
+
+    res = Helpers.endpoint_get_callback(url, headers)
+
+    res =
+      if is_map(res) do
+        StructProtocol.map_to_struct(%Package{}, res)
+      else
+        {:error, "Unauthorized or not found"}
+      end
+
+    res
+  end
+
+  def get_by_label(%Package{}, store_owner_key, store_license_number, label, _filters) do
+    headers = Helpers.headers(store_owner_key)
+    store_license_number = "?licenseNumber=" <> store_license_number
+
+    url = Helpers.endpoint() <> "packages/v1/" <> label <> store_license_number
+
+    res = Helpers.endpoint_get_callback(url, headers)
+
+    res =
+      if is_map(res) do
+        StructProtocol.map_to_struct(%Package{}, res)
+      else
+        {:error, "Unauthorized or not found"}
+      end
+
+    res
   end
 end
 

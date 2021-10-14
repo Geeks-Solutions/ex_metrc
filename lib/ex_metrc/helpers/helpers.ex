@@ -43,30 +43,6 @@ defmodule ExMetrc.Helpers do
     env(:requests_per_second, %{raise: false, default: 3})
   end
 
-  def metrc_url_endpoints(action) do
-    case action do
-      "get employees" ->
-        endpoint() <> "employees/v1/?"
-
-      "get active packages" ->
-        endpoint() <> "packages/v1/active/?"
-
-      # For sales, there are 2 endpoints: active and inactive
-      # active: receipt is neither final or voided
-      # inactive: receipt is final or voided, however voiding a receipt deletes it from the database,
-      # so inactive means the receipt is final
-      # There is no endpoint that can change receipt from active to inactive
-      "get sales" ->
-        endpoint() <> "sales/v1/receipts/active/?"
-
-      "get sale by id" ->
-        endpoint() <> "sales/v1/receipts/"
-
-      _ ->
-        {:error, :action_not_known}
-    end
-  end
-
   def endpoint_get_callback(
         url,
         headers \\ [{"content-type", "application/json"}]
@@ -139,11 +115,57 @@ defmodule ExMetrc.Helpers do
     end
   end
 
-  def query_filters(filter_map) do
-    filter_map
-    |> Enum.reduce("", fn {key, value}, acc ->
-      acc <> "&" <> to_string(key) <> "=" <> to_string(value)
+  def split_filters(filters_map, string_filters, min_integer_filters, max_integer_filters) do
+    # we have 3 types of filtering, either strings ==, or integers less, or integers more
+    # so we need to retrieve the values then filter based on this
+    # to then get the integer filters, we need to remove min and max from the filter map and get the key
+    # so the first 4 characters are always removed ("min_" and "max_")
+
+    # First we split the filters map input to the 3 types we have
+    string_filters =
+      filters_map
+      |> Map.take(string_filters)
+
+    min_integer_filters =
+      filters_map
+      |> Map.take(min_integer_filters)
+      |> Map.new(fn {key, value} ->
+        {key |> Atom.to_string() |> String.slice(4..-1) |> String.to_atom(), value}
+      end)
+
+    max_integer_filters =
+      filters_map
+      |> Map.take(max_integer_filters)
+      |> Map.new(fn {key, value} ->
+        {key |> Atom.to_string() |> String.slice(4..-1) |> String.to_atom(), value}
+      end)
+
+    {string_filters, min_integer_filters, max_integer_filters}
+  end
+
+  def filter(struct, list, %{string: string_filters, min: min_filters, max: max_filters}) do
+    # We need to iterate over the list retrieved from Metrc
+    # Since the maps returned have different naming convention than snake case, transform it to the struct
+    # then to a map to use Enum protocol
+    # To filter the strings not equal to string filters while ignoring cases
+    # then integers less than min integer filters
+    # then integers more than max integer filters
+    # then transform it back to structs
+    Enum.map(list, fn object ->
+      StructProtocol.map_to_struct(struct, object) |> Map.from_struct()
     end)
+    |> Enum.reject(fn object ->
+      object
+      |> Enum.any?(fn {key, value} ->
+        (key in Map.keys(string_filters) &&
+           String.downcase(value) != String.downcase(Map.get(string_filters, key))) ||
+          (key in Map.keys(min_filters) &&
+             value < Map.get(min_filters, key)) ||
+          (key in Map.keys(max_filters) &&
+             value > Map.get(max_filters, key))
+      end)
+    end)
+    |> Enum.map(fn object -> struct(struct, object) end)
   end
 
   def validate_date(date, nullable \\ false) when is_binary(date) do

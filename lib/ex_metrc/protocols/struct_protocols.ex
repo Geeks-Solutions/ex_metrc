@@ -1,6 +1,9 @@
 defprotocol ApiProtocol do
-  @spec get(t, any, any, any) :: any
   def get(struct, store_owner_key, store_license_number, filters)
+
+  def get_by_id(struct, store_owner_key, store_license_number, id, filters)
+
+  def get_by_label(struct, store_owner_key, store_license_number, label, filters)
 end
 
 defprotocol StructProtocol do
