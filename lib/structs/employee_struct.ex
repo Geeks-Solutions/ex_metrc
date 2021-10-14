@@ -74,10 +74,10 @@ defimpl ApiProtocol, for: Employee do
   end
 
   def get_by_id(_struct, _store_owner_key, _store_license_number, _id, _filters) do
-    nil
+    {:error, :not_supported}
   end
 
   def get_by_label(_struct, _store_owner_key, _store_license_number, _label, _filters) do
-    nil
+    {:error, :not_supported}
   end
 end

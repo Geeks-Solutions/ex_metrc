@@ -151,10 +151,10 @@ defmodule ExMetrc.Helpers do
     # then integers less than min integer filters
     # then integers more than max integer filters
     # then transform it back to structs
-    Enum.map(list, fn object ->
+    Stream.map(list, fn object ->
       StructProtocol.map_to_struct(struct, object) |> Map.from_struct()
     end)
-    |> Enum.reject(fn object ->
+    |> Stream.reject(fn object ->
       object
       |> Enum.any?(fn {key, value} ->
         (key in Map.keys(string_filters) &&
@@ -165,7 +165,8 @@ defmodule ExMetrc.Helpers do
              value > Map.get(max_filters, key))
       end)
     end)
-    |> Enum.map(fn object -> struct(struct, object) end)
+    |> Stream.map(fn object -> struct(struct, object) end)
+    |> Enum.to_list()
   end
 
   def validate_date(date, nullable \\ false) when is_binary(date) do
