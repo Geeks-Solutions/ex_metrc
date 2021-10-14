@@ -4,6 +4,10 @@ defmodule ExMetrc.Helpers do
   """
 
   @one_day_in_seconds 86_400
+
+  @doc """
+  Retrieves the environment variable with the specified key
+  """
   def env(key, opts \\ %{default: nil, raise: false}) do
     Application.get_env(:ex_metrc, key)
     |> case do
@@ -20,6 +24,10 @@ defmodule ExMetrc.Helpers do
     end
   end
 
+  @doc """
+  Creates the HTTP Request headers
+  """
+
   def headers(store_owner_key) do
     [
       {"content-type", "application/json"},
@@ -27,22 +35,38 @@ defmodule ExMetrc.Helpers do
     ]
   end
 
+  @doc """
+  Creates the HTTP Request header specific for the Metrc API authentication
+  \nReturns `Basic encoded_in_base_64`
+  """
   def authentication_header(store_owner_key) do
     "Basic " <> Base.encode64(vendor_api_key() <> ":" <> store_owner_key)
   end
 
+  @doc """
+  Retrieves the vendor_api_key env variable
+  """
   def vendor_api_key do
     env(:vendor_key, %{raise: true})
   end
 
+  @doc """
+  Retrieves the Metrc API base url env variable
+  """
   def endpoint do
     env(:endpoint, %{raise: false, default: "https://api-ca.metrc.com/"})
   end
 
+  @doc """
+  Retrieves the desired number of requests per second used to send requests to Metrc API
+  """
   def requests_per_second do
     env(:requests_per_second, %{raise: false, default: 3})
   end
 
+  @doc """
+  Function that handles sending the GET request to the url parameter with the headers and the response
+  """
   def endpoint_get_callback(
         url,
         headers \\ [{"content-type", "application/json"}]
@@ -56,6 +80,9 @@ defmodule ExMetrc.Helpers do
     end
   end
 
+  @doc """
+  Function that handles sending the PUT request to the url parameter with argument body and the headers and the response
+  """
   def endpoint_put_callback(
         url,
         args,
@@ -72,6 +99,9 @@ defmodule ExMetrc.Helpers do
     end
   end
 
+  @doc """
+  Function that handles sending the POST request to the url parameter with argument body and the headers and the response
+  """
   def endpoint_post_callback(
         url,
         args,
@@ -88,6 +118,9 @@ defmodule ExMetrc.Helpers do
     end
   end
 
+  @doc """
+  Function that handles sending the DELETE request to the url parameter with the headers and the response
+  """
   def endpoint_delete_callback(
         url,
         headers \\ [{"content-type", "application/json"}]
@@ -115,6 +148,25 @@ defmodule ExMetrc.Helpers do
     end
   end
 
+  @doc """
+  Function that split a set of filters to the given filter lists:
+  - String filters, where a value is checked if it equals the specific string filter
+  - Minimum Integer filters, where a value is checked if it is less than the specific integer filter
+  - Maximum Integer filters,  where a value is checked if it is more than the specific integer filter
+  \nReturns:
+  - {`map` of string_filters, `map` of integer filters,`map` of integer filters}
+
+  ## Examples
+
+      iex> ExMetrc.Helpers.split_filters(
+        %{name: "ex_metrc",
+          min_quantity: 7,
+          measuring_unit: "Each",
+          max_quantity: 12,
+          min_not_exist: 7},[:name, :measuring_unit],[:min_quantity], [:max_quantity])
+      {%{name: "ex_metrc, measuring_quantity: "Each"}, %{min_quantity: 7}, %{max_quantity: 12}}
+
+  """
   def split_filters(filters_map, string_filters, min_integer_filters, max_integer_filters) do
     # we have 3 types of filtering, either strings ==, or integers less, or integers more
     # so we need to retrieve the values then filter based on this
@@ -143,6 +195,25 @@ defmodule ExMetrc.Helpers do
     {string_filters, min_integer_filters, max_integer_filters}
   end
 
+  @doc """
+  Function that filters a list of maps to 3 types of filters (string, min integers, max integers) and then transforms it to the given struct
+  \nReturns:
+  - `List` of [`struct` of the given struct type]
+
+  ## Examples
+
+      iex> ExMetrc.Helpers.filter(%Package{},
+        [ %{..., package_type: "P1", quantity: 5,...},
+          %{..., package_type: "P1", quantity: 8,...},
+          %{..., package_type: "P2", quantity: 1,...}
+        ], %{
+          string: %{package_type: "P1"},
+          min: %{quantity: 4},
+          max: %{quantity: 7}
+        })
+      [%Package{..., package_type: "P1", quantity: 5,...}]
+
+  """
   def filter(struct, list, %{string: string_filters, min: min_filters, max: max_filters}) do
     # We need to iterate over the list retrieved from Metrc
     # Since the maps returned have different naming convention than snake case, transform it to the struct
@@ -169,6 +240,17 @@ defmodule ExMetrc.Helpers do
     |> Enum.to_list()
   end
 
+  @doc """
+  Function that checks if a given string is parsable to date or datetime of ISO-8601 format or null if nullable is true
+  \nReturns:
+    - `:ok`
+    - `{:error, reason}`
+
+  ## Examples
+
+      iex> ExMetrc.Helpers.validate_date("2021-10-08T04:23:59Z")
+      :ok
+  """
   def validate_date(date, nullable \\ false) when is_binary(date) do
     if nullable && date == "" do
       :ok
@@ -193,6 +275,16 @@ defmodule ExMetrc.Helpers do
     {:error, :invalid_params}
   end
 
+  @doc """
+  Function that transforms strings in ISO8601 format (date or datetime) to datetime and returns a list of consecutive day tuples with at most 24 hours difference between 2 days in each tuple
+  \nReturns:
+    - `List` of `Tuple`
+
+  ## Examples
+
+      iex> ExMetrc.Helpers.split_dates("2021-10-07", "2021-10-08T04:23:59Z")
+      [{"2021-10-07T00:00:00Z", "2021-10-08T00:00:00Z"}, {"2021-10-08T00:00:00Z", "2021-10-08T04:23:59Z"}]
+  """
   def split_dates(start_date, end_date) do
     case {start_date, end_date} do
       {"", _} ->
@@ -231,7 +323,7 @@ defmodule ExMetrc.Helpers do
     end
   end
 
-  def dates_list_recursion(start_date, end_date) do
+  defp dates_list_recursion(start_date, end_date) do
     interval = DateTime.diff(end_date, start_date)
 
     if interval <= @one_day_in_seconds do

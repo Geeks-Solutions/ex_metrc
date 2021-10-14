@@ -1,5 +1,7 @@
 defmodule PackageItem do
-  @moduledoc "Responsible for defining Package Item structs"
+  @moduledoc """
+  Responsible for defining Package Item structs
+  """
   defstruct name: "",
             quantity_type: nil,
             default_lab_testing_state: nil,

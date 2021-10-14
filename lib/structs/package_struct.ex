@@ -1,5 +1,7 @@
 defmodule Package do
-  @moduledoc "Responsible for defining Package structs"
+  @moduledoc """
+  Responsible for defining Package structs
+  """
   defstruct metrc_id: "",
             label: "",
             package_type: "",
