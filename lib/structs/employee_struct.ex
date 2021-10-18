@@ -3,14 +3,14 @@ defmodule Employee do
   Responsible for defining Employee structs
   """
   defstruct fullname: "",
-            license: %EmployeeLicense{}
+            license: %License{}
 end
 
 defimpl StructProtocol, for: Employee do
   def map_to_struct(%Employee{}, map) do
     license_map = Map.get(map, "License")
 
-    employee_license = StructProtocol.map_to_struct(%EmployeeLicense{}, license_map)
+    employee_license = StructProtocol.map_to_struct(%License{}, license_map)
 
     struct(Employee, %{
       fullname: Map.get(map, "FullName"),
