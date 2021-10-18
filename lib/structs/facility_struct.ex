@@ -1,4 +1,7 @@
 defmodule Facility do
+  @moduledoc """
+  Responsible for defining Facility structs
+  """
   defstruct hire_date: "",
             is_owner: nil,
             is_manager: nil,

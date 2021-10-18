@@ -1,6 +1,6 @@
 defmodule License do
   @moduledoc """
-  Responsible for defining Employee License structs
+  Responsible for defining License structs
   """
   defstruct number: "",
             start_date: nil,

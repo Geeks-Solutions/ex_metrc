@@ -1,4 +1,7 @@
 defmodule FacilityType do
+  @moduledoc """
+  Responsible for defining Facility Type structs
+  """
   defstruct is_medical: nil,
             is_retail: nil,
             is_hemp: nil,
