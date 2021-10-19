@@ -7,8 +7,6 @@ defmodule ExMetrc.Application do
 
   def start(_type, _args) do
     children = [
-      # Start the Telemetry supervisor
-      ExMetrcWeb.Telemetry,
       # Start the PubSub system
       {Phoenix.PubSub, name: ExMetrc.PubSub},
       # Start the Endpoint (http/https)
