@@ -12,7 +12,7 @@ config :my_app, Oban,
   ]
 
 config :hammer,
-  backend: {Hammer.Backend.ETS, [expiry_ms: 8_000, cleanup_interval_ms: 7_900]}
+  backend: {Hammer.Backend.ETS, [expiry_ms: 1_300, cleanup_interval_ms: 1_150]}
 ```
 
 2. Add ex_metrc to you `mix.exs`
