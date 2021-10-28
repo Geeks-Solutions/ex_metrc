@@ -2,9 +2,16 @@ defmodule ExMetrc.Helpers do
   @moduledoc """
   Helper functions for the library
   """
-
+  alias ExMetrc.GetWorker
+  import Ecto.Query, warn: false
   @one_day_in_seconds 86_400
 
+  @string_to_struct %{
+    "employee" => %Employee{},
+    "package" => %Package{},
+    "sale" => %Sale{},
+    "facility" => %Facility{}
+  }
   @doc """
   Retrieves the environment variable with the specified key
   """
@@ -21,6 +28,17 @@ defmodule ExMetrc.Helpers do
 
       value ->
         value
+    end
+  end
+
+  def repo do
+    Application.get_env(:ex_metrc, :repo)
+    |> case do
+      nil ->
+        raise "Please make sure to configure your repo under for the :ex_metrc app, i.e: repo: MyApp.Repo "
+
+      repo ->
+        repo
     end
   end
 
@@ -72,8 +90,12 @@ defmodule ExMetrc.Helpers do
         headers \\ [{"content-type", "application/json"}]
       ) do
     case HTTPoison.get(url, headers) do
-      {:ok, response} ->
-        fetch_response_body(response)
+      {:ok, %HTTPoison.Response{status_code: status_code} = response} ->
+        if status_code == 404 do
+          {:error, :not_found}
+        else
+          fetch_response_body(response)
+        end
 
       {:error, error} ->
         {:error, error}
@@ -167,7 +189,12 @@ defmodule ExMetrc.Helpers do
       {%{name: "ex_metrc, measuring_quantity: "Each"}, %{min_quantity: 7}, %{max_quantity: 12}}
 
   """
-  def split_filters(filters_map, string_filters, min_integer_filters, max_integer_filters) do
+  def split_filters(
+        filters_map,
+        string_filters,
+        min_integer_filters,
+        max_integer_filters
+      ) do
     # we have 3 types of filtering, either strings ==, or integers less, or integers more
     # so we need to retrieve the values then filter based on this
     # to then get the integer filters, we need to remove min and max from the filter map and get the key
@@ -176,20 +203,20 @@ defmodule ExMetrc.Helpers do
     # First we split the filters map input to the 3 types we have
     string_filters =
       filters_map
-      |> Map.take(string_filters)
+      |> Map.take(Enum.to_list(string_filters))
 
     min_integer_filters =
       filters_map
-      |> Map.take(min_integer_filters)
+      |> Map.take(Enum.to_list(min_integer_filters))
       |> Map.new(fn {key, value} ->
-        {key |> Atom.to_string() |> String.slice(4..-1) |> String.to_atom(), value}
+        {key |> String.slice(4..-1), value}
       end)
 
     max_integer_filters =
       filters_map
-      |> Map.take(max_integer_filters)
+      |> Map.take(Enum.to_list(max_integer_filters))
       |> Map.new(fn {key, value} ->
-        {key |> Atom.to_string() |> String.slice(4..-1) |> String.to_atom(), value}
+        {key |> String.slice(4..-1), value}
       end)
 
     {string_filters, min_integer_filters, max_integer_filters}
@@ -334,6 +361,143 @@ defmodule ExMetrc.Helpers do
 
       [{DateTime.to_iso8601(start_date), DateTime.to_iso8601(next_day)}] ++
         dates_list_recursion(next_day, end_date)
+    end
+  end
+
+  def atomize_keys(map) do
+    map
+    |> Enum.map(fn {k, v} -> {atomize(k), v} end)
+    |> Enum.into(%{})
+  end
+
+  def atomize(k) when is_binary(k) do
+    String.to_atom(k)
+  end
+
+  def single_get_call(parent, args, meta, priority) do
+    if priority == 0 do
+      spawn(fn ->
+        args = args |> Map.put("pid", :erlang.pid_to_list(self()))
+        GetWorker.new(args, meta: meta, priority: priority) |> Oban.insert()
+
+        receive do
+          {:ok, result} ->
+            send(parent, {:ok, result})
+
+          {:error, error} ->
+            send(parent, {:error, error})
+        end
+      end)
+
+      receive do
+        {:ok, result} ->
+          {:ok, result}
+
+        {:error, error} ->
+          {:error, error}
+      end
+    else
+      # generate unique id and put it in meta for the only oban job
+      unique_id = gen_reference()
+      meta = meta |> Map.put("call_id", unique_id)
+      GetWorker.new(args, meta: meta, priority: priority) |> Oban.insert()
+      {:ok, unique_id}
+    end
+  end
+
+  def multiple_get_calls(parent, args, urls_list, meta, priority) do
+    if priority == 0 do
+      Enum.each(urls_list, fn url ->
+        spawn(fn ->
+          args = args |> Map.put("pid", :erlang.pid_to_list(self())) |> Map.put("url", url)
+          GetWorker.new(args, meta: meta, priority: priority) |> Oban.insert()
+
+          receive do
+            {:ok, result} ->
+              send(parent, {:ok, result})
+
+            {:error, error} ->
+              send(parent, {:error, error})
+          end
+        end)
+      end)
+
+      recursive_receive(length(urls_list))
+    else
+      unique_id = gen_reference()
+      meta = meta |> Map.put("call_id", unique_id)
+
+      Enum.each(urls_list, fn url ->
+        spawn(fn ->
+          args = args |> Map.put("pid", :erlang.pid_to_list(self())) |> Map.put("url", url)
+          GetWorker.new(args, meta: meta, priority: priority) |> Oban.insert()
+        end)
+      end)
+
+      {:ok, unique_id}
+    end
+  end
+
+  defp gen_reference do
+    min = String.to_integer("100000", 36)
+    max = String.to_integer("ZZZZZZ", 36)
+
+    max
+    |> Kernel.-(min)
+    |> :rand.uniform()
+    |> Kernel.+(min)
+    |> Integer.to_string(36)
+  end
+
+  defp recursive_receive(count, res \\ []) do
+    receive do
+      {:ok, result} ->
+        if(count == 1) do
+          {:ok, result ++ res}
+        else
+          recursive_receive(count - 1, result ++ res)
+        end
+
+      {:error, error} ->
+        {:error, error}
+    end
+  end
+
+  def get_asynchronous_result(unique_id) do
+    result =
+      from(
+        p in "oban_jobs",
+        where: fragment("? ->> 'call_id' = ?", p.meta, ^unique_id),
+        select: %{meta: p.meta, args: p.args}
+      )
+      |> repo().all()
+
+    if result == [] do
+      {:error, :not_found}
+    else
+      struct = List.first(result) |> Map.get(:args) |> Map.get("struct")
+      struct = Map.get(@string_to_struct, struct)
+
+      case(Map.get(List.first(result), :meta)) do
+        %{"status" => "failure", "error" => error} ->
+          {:error, error}
+
+        %{"status" => "success", "result" => _} ->
+          result =
+            result
+            |> Enum.reduce([], fn single_result, acc ->
+              acc ++
+                [
+                  Map.get(single_result.meta, "result")
+                  |> Enum.map(fn single_item ->
+                    struct(struct, single_item)
+                  end)
+                ]
+            end)
+            |> List.flatten()
+
+          {:ok, result}
+      end
     end
   end
 end

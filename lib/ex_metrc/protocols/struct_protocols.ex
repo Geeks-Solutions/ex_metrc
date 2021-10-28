@@ -13,6 +13,11 @@ defprotocol ApiProtocol do
   Function to send a GET by specified Label request to the specified struct
   """
   def get_by_label(struct, store_owner_key, store_license_number, label, filters)
+
+  @doc """
+  Function to send a GET request to the active endpoint of the specified struct
+  """
+  def get_active(struct, store_owner_key, store_license_number, filters)
 end
 
 defprotocol StructProtocol do

@@ -51,7 +51,11 @@ defmodule ExMetrc.MixProject do
       {:poison, "~> 4.0.1"},
       {:credo, "~> 1.5", only: [:dev, :test], runtime: false},
       {:excoveralls, "~> 0.10", only: :test},
-      {:ex_doc, "~> 0.24", only: :dev, runtime: false}
+      {:ex_doc, "~> 0.24", only: :dev, runtime: false},
+      {:oban, "~> 2.5"},
+      {:hammer, "~> 6.0"},
+      {:ecto_sql, "~> 3.7.0"},
+      {:postgrex, "~> 0.15.7"}
     ]
   end
 

@@ -1,5 +1,6 @@
 defmodule SaleTransaction do
   @moduledoc "Responsible for defining SaleTransaction (items sold in a sale) structs"
+  @derive Jason.Encoder
   defstruct package_id: nil,
             package_label: "",
             item_unit_cbd_content_dose: nil,

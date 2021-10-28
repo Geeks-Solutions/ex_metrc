@@ -2,6 +2,7 @@ defmodule Facility do
   @moduledoc """
   Responsible for defining Facility structs
   """
+  @derive Jason.Encoder
   defstruct hire_date: "",
             is_owner: nil,
             is_manager: nil,
@@ -62,37 +63,27 @@ defimpl ApiProtocol, for: Facility do
         end
       end)
 
+    priority = opts |> Map.get(:priority, 2)
     url = Helpers.endpoint() <> "facilities/v1"
 
-    headers = Helpers.headers(store_owner_key)
-    res = Helpers.endpoint_get_callback(url, headers)
+    headers = Helpers.headers(store_owner_key) |> Enum.map(fn {key, value} -> %{key => value} end)
+    meta = %{status: "pending"}
 
-    res =
-      if is_list(res) do
-        {string_filters, min_integer_filters, max_integer_filters} =
-          Helpers.split_filters(
-            opts,
-            @string_filters,
-            @min_integer_filters,
-            @max_integer_filters
-          )
+    args = %{
+      "url" => url,
+      "headers" => headers,
+      "priority" => priority,
+      "filters" => %{
+        string_filters: @string_filters,
+        min_integer_filters: @min_integer_filters,
+        max_integer_filters: @max_integer_filters
+      },
+      "struct" => "facility",
+      "opts" => opts
+    }
 
-        Helpers.filter(%Facility{}, res, %{
-          string: string_filters,
-          min: min_integer_filters,
-          max: max_integer_filters
-        })
-      else
-        case res do
-          %{"Message" => message} ->
-            {:error, message}
-
-          {:error, ""} ->
-            {:error, "Invalid License Number"}
-        end
-      end
-
-    res
+    parent = self()
+    Helpers.single_get_call(parent, args, meta, priority)
   end
 
   def get(_, _, _, _) do
@@ -104,6 +95,10 @@ defimpl ApiProtocol, for: Facility do
   end
 
   def get_by_label(_struct, _store_owner_key, _store_license_number, _label, _filters) do
+    {:error, :not_supported}
+  end
+
+  def get_active(_, _, _, _) do
     {:error, :not_supported}
   end
 end

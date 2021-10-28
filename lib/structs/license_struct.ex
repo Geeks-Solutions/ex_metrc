@@ -2,6 +2,7 @@ defmodule License do
   @moduledoc """
   Responsible for defining License structs
   """
+  @derive Jason.Encoder
   defstruct number: "",
             start_date: nil,
             end_date: nil,

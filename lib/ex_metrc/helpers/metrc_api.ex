@@ -25,6 +25,28 @@ defmodule ExMetrc.MetrcAPI do
   end
 
   @doc """
+  Routes to the GET active endpoint request of the desired struct type.
+  \nReturns:
+   - `List` of the specified `Struct`
+   - `{:error, reason}`
+
+  ## Examples
+
+      iex> ExMetrc.MetrcAPI.get_active(%Package{},"Your_key","your_license_number",%{start_date: "2021-10-08, end_date: "2021-10-12"})
+      [%Package{}{...}, %Package{}{...},...]
+
+  """
+
+  def get_active(struct, store_owner_key, store_license_number, filters \\ %{}) do
+    if ApiProtocol.impl_for(struct) do
+      ApiProtocol.get_active(struct, store_owner_key, store_license_number, filters)
+    else
+      {:error,
+       "#{struct.__struct__ |> Module.split() |> Enum.join(".")} struct does not support this"}
+    end
+  end
+
+  @doc """
   Routes to the GET by ID request of the desired struct type.
   \nReturns:
    - `Struct`.

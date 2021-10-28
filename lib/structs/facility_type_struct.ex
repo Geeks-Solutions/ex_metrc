@@ -2,6 +2,7 @@ defmodule FacilityType do
   @moduledoc """
   Responsible for defining Facility Type structs
   """
+  @derive Jason.Encoder
   defstruct is_medical: nil,
             is_retail: nil,
             is_hemp: nil,
