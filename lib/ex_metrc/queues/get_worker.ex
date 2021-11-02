@@ -9,18 +9,20 @@ defmodule ExMetrc.GetWorker do
     "employee" => %Employee{},
     "package" => %Package{},
     "sale" => %Sale{},
-    "facility" => %Facility{}
+    "facility" => %Facility{},
+    "saleTransaction" => %Sale{}
   }
   def perform(
         %{
-          args: %{
-            "headers" => headers,
-            "url" => url,
-            "priority" => priority,
-            "filters" => filters,
-            "struct" => struct,
-            "opts" => opts
-          },
+          args:
+            %{
+              "headers" => headers,
+              "url" => url,
+              "priority" => priority,
+              "filters" => filters,
+              "struct" => struct,
+              "opts" => opts
+            } = args,
           meta: _meta
         } = payload
       ) do
@@ -32,6 +34,7 @@ defmodule ExMetrc.GetWorker do
       {:allow, _count} ->
         payload_id = payload.id
         headers = headers |> Enum.map(fn map -> Map.to_list(map) end) |> List.flatten()
+        string_struct = struct
         struct = Map.get(@string_to_struct, struct)
 
         if priority == 0 do
@@ -46,6 +49,39 @@ defmodule ExMetrc.GetWorker do
                   Map.get(filters, "min_integer_filters", []),
                   Map.get(filters, "max_integer_filters", [])
                 )
+
+              res =
+                if string_struct == "sale" do
+                  store_license_number = Map.get(args, "store_license_number")
+
+                  Enum.map(res, fn receipt ->
+                    # we need to send another API request to retrieve the items sold using the receipt ID
+                    receipt_id = Map.get(receipt, "Id") |> Integer.to_string()
+
+                    url =
+                      Helpers.endpoint() <>
+                        "sales/v1/receipts/" <>
+                        receipt_id <> "?" <> store_license_number
+
+                    args =
+                      args
+                      |> Map.replace("pid", :erlang.pid_to_list(self()))
+                      |> Map.replace("url", url)
+                      |> Map.replace("priority", 0)
+                      |> Map.replace("filters", %{})
+                      |> Map.replace("struct", "saleTransaction")
+
+                    meta = %{status: "pending"}
+
+                    {:ok, [receipt_res]} = Helpers.single_get_call(self(), args, meta, 0)
+
+                    # receipt_transactions is a list of sale transaction containing information about the item sold
+                    # as well as total price and total quantity
+                    Map.put(receipt, "Transactions", Map.get(receipt_res, "Transactions"))
+                  end)
+                else
+                  res
+                end
 
               res =
                 Helpers.filter(struct, res, %{
@@ -153,6 +189,39 @@ defmodule ExMetrc.GetWorker do
                   Map.get(filters, "min_integer_filters", []),
                   Map.get(filters, "max_integer_filters", [])
                 )
+
+              res =
+                if string_struct == "sale" do
+                  store_license_number = Map.get(args, "store_license_number")
+
+                  Enum.map(res, fn receipt ->
+                    # we need to send another API request to retrieve the items sold using the receipt ID
+                    receipt_id = Map.get(receipt, "Id") |> Integer.to_string()
+
+                    url =
+                      Helpers.endpoint() <>
+                        "sales/v1/receipts/" <>
+                        receipt_id <> "?" <> store_license_number
+
+                    args =
+                      args
+                      |> Map.replace("pid", :erlang.pid_to_list(self()))
+                      |> Map.replace("url", url)
+                      |> Map.replace("priority", 0)
+                      |> Map.replace("filters", %{})
+                      |> Map.replace("struct", "saleTransaction")
+
+                    meta = %{status: "pending"}
+
+                    {:ok, [receipt_res]} = Helpers.single_get_call(self(), args, meta, 0)
+
+                    # receipt_transactions is a list of sale transaction containing information about the item sold
+                    # as well as total price and total quantity
+                    Map.put(receipt, "Transactions", Map.get(receipt_res, "Transactions"))
+                  end)
+                else
+                  res
+                end
 
               res =
                 Helpers.filter(struct, res, %{

@@ -93,7 +93,8 @@ defimpl ApiProtocol, for: Sale do
           max_integer_filters: @max_integer_filters
         },
         "struct" => "sale",
-        "opts" => opts
+        "opts" => opts,
+        "store_license_number" => store_license_number
       }
 
       meta = %{status: "pending"}
