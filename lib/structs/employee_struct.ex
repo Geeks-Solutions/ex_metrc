@@ -45,7 +45,7 @@ defimpl ApiProtocol, for: Employee do
         end
       end)
 
-    priority = opts |> Map.get(:priority, 2)
+    priority = opts |> Map.get(:priority, 0)
     url = Helpers.endpoint() <> "employees/v1/?licenseNumber=" <> store_license_number
 
     headers = Helpers.headers(store_owner_key) |> Enum.map(fn {key, value} -> %{key => value} end)

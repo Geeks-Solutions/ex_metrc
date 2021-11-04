@@ -80,7 +80,7 @@ defimpl ApiProtocol, for: Package do
       #     - Set the amount of requests per second in the config file
       #     - Send a batch of requests every 1 second
 
-      priority = opts |> Map.get(:priority, 2)
+      priority = opts |> Map.get(:priority, 0)
 
       headers =
         Helpers.headers(store_owner_key) |> Enum.map(fn {key, value} -> %{key => value} end)
@@ -140,7 +140,7 @@ defimpl ApiProtocol, for: Package do
         end
       end)
 
-    priority = opts |> Map.get(:priority, 2)
+    priority = opts |> Map.get(:priority, 0)
     store_license_number = "?licenseNumber=" <> store_license_number
     url = Helpers.endpoint() <> "packages/v1/" <> id <> store_license_number
 
@@ -179,7 +179,7 @@ defimpl ApiProtocol, for: Package do
         end
       end)
 
-    priority = opts |> Map.get(:priority, 2)
+    priority = opts |> Map.get(:priority, 0)
     store_license_number = "?licenseNumber=" <> store_license_number
 
     url = Helpers.endpoint() <> "packages/v1/" <> label <> store_license_number
@@ -235,7 +235,7 @@ defimpl ApiProtocol, for: Package do
       #     - Set the amount of requests per second in the config file
       #     - Send a batch of requests every 1 second
 
-      priority = opts |> Map.get(:priority, 2)
+      priority = opts |> Map.get(:priority, 0)
 
       headers =
         Helpers.headers(store_owner_key) |> Enum.map(fn {key, value} -> %{key => value} end)
