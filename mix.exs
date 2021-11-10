@@ -55,7 +55,8 @@ defmodule ExMetrc.MixProject do
       {:oban, "~> 2.5"},
       {:hammer, "~> 6.0"},
       {:ecto_sql, "~> 3.7.0"},
-      {:postgrex, "~> 0.15.7"}
+      {:postgrex, "~> 0.15.7"},
+      {:atomic_map, "~> 0.8"}
     ]
   end
 

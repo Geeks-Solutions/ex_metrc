@@ -490,7 +490,7 @@ defmodule ExMetrc.Helpers do
                 [
                   Map.get(single_result.meta, "result")
                   |> Enum.map(fn single_item ->
-                    struct(struct, single_item)
+                    struct(struct, AtomicMap.convert(single_item))
                   end)
                 ]
             end)
