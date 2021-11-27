@@ -72,7 +72,13 @@ defmodule ExMetrc.Helpers do
   Retrieves the Metrc API base url env variable
   """
   def endpoint do
-    env(:endpoint, %{raise: false, default: "https://api-ca.metrc.com/"})
+    mode = env(:mode, %{raise: false, default: "live"})
+
+    if mode == "live" do
+      "https://api-ca.metrc.com/"
+    else
+      "https://sandbox-api-ca.metrc.com/"
+    end
   end
 
   @doc """
@@ -326,7 +332,9 @@ defmodule ExMetrc.Helpers do
         start_date =
           case(Date.from_iso8601(start_date)) do
             {:ok, date} ->
-              {:ok, datetime} = DateTime.new(date, Time.from_seconds_after_midnight(0))
+              {:ok, datetime} =
+                DateTime.new(date, Time.from_seconds_after_midnight(0), "America/Tijuana")
+
               datetime
 
             {:error, _} ->
@@ -337,7 +345,9 @@ defmodule ExMetrc.Helpers do
         end_date =
           case(Date.from_iso8601(end_date)) do
             {:ok, date} ->
-              {:ok, datetime} = DateTime.new(date, Time.from_seconds_after_midnight(0))
+              {:ok, datetime} =
+                DateTime.new(date, Time.from_seconds_after_midnight(0), "America/Tijuana")
+
               datetime
 
             {:error, _} ->

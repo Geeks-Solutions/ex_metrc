@@ -22,6 +22,7 @@ config :hammer,
  config :ex_metrc,
  vendor_key: "your_vendor_key",
  requests_per_second: 150,
+ mode: "live"
  repo: MyApp.Repo
  ```
 Requests_per_second is used to configure how many requests to send per second, as the Metrc API has rate limiting on the number of requests. 
@@ -31,4 +32,5 @@ Repo is your host project's repo module, to be used in the Oban jobs when perfor
 For the user_key, you need to pass it in the functions dynamically alongside the license number.
 This way, you can access multiple stores without the need to restart the server to change the user key
 
+If you wish to access the sandbox endpoint instead the live one, change the `mode` to `dev`
 Now you are ready to use the library in your application.

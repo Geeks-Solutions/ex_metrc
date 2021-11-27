@@ -61,4 +61,5 @@ config :phoenix, :plug_init_mode, :runtime
 # this is added to test the library separately without integrating it in another project
 # config :ex_metrc,
 #   vendor_key: "YOUR_API_VENDOR_KEY",
-#   requests_per_second: 3
+#   mode: "dev",
+#   requests_per_second: 20

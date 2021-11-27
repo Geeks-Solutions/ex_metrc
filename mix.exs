@@ -56,7 +56,10 @@ defmodule ExMetrc.MixProject do
       {:hammer, "~> 6.0"},
       {:ecto_sql, "~> 3.7.0"},
       {:postgrex, "~> 0.15.7"},
-      {:atomic_map, "~> 0.8"}
+      {:atomic_map, "~> 0.8"},
+      {:castore, "~> 0.1.11"},
+      {:mint, "~> 1.3"},
+      {:tz, "~> 0.20.1"}
     ]
   end
 
