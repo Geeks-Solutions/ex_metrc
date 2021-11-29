@@ -10,7 +10,11 @@ defmodule ExMetrc.MixProject do
       compilers: [:phoenix, :gettext] ++ Mix.compilers(),
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
-      deps: deps()
+      deps: deps(),
+      docs: [
+        extras: ["README.md"],
+        main: "readme"
+      ]
     ]
   end
 
@@ -46,7 +50,16 @@ defmodule ExMetrc.MixProject do
       {:httpoison, "~> 1.8"},
       {:poison, "~> 4.0.1"},
       {:credo, "~> 1.5", only: [:dev, :test], runtime: false},
-      {:excoveralls, "~> 0.10", only: :test}
+      {:excoveralls, "~> 0.10", only: :test},
+      {:ex_doc, "~> 0.24", only: :dev, runtime: false},
+      {:oban, "~> 2.5"},
+      {:hammer, "~> 6.0"},
+      {:ecto_sql, "~> 3.7.0"},
+      {:postgrex, "~> 0.15.7"},
+      {:atomic_map, "~> 0.8"},
+      {:castore, "~> 0.1.11"},
+      {:mint, "~> 1.3"},
+      {:tz, "~> 0.20.1"}
     ]
   end
 
