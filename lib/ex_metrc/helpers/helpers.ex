@@ -437,12 +437,10 @@ defmodule ExMetrc.Helpers do
       unique_id = gen_reference()
       meta = meta |> Map.put("call_id", unique_id)
 
-      Enum.each(urls_list, fn url ->
-        spawn(fn ->
-          args = args |> Map.put("pid", :erlang.pid_to_list(self())) |> Map.put("url", url)
-          GetWorker.new(args, meta: meta, priority: priority) |> Oban.insert()
-        end)
+      Enum.map(urls_list, fn url ->
+        GetWorker.new(args |> Map.put("url", url), meta: meta, priority: priority)
       end)
+      |> Oban.insert_all()
 
       {:ok, unique_id}
     end
