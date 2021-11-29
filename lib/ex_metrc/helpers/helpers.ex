@@ -72,9 +72,9 @@ defmodule ExMetrc.Helpers do
   Retrieves the Metrc API base url env variable
   """
   def endpoint do
-    mode = env(:mode, %{raise: false, default: "live"})
+    mode = env(:mode, %{raise: false, default: "prod"})
 
-    if mode == "live" do
+    if mode == "prod" do
       "https://api-ca.metrc.com/"
     else
       "https://sandbox-api-ca.metrc.com/"
